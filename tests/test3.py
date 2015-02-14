@@ -1,0 +1,45 @@
+import requests
+import mwparserfromhell
+
+def requestUrl(scheme, url, path, **query):
+    return scheme + "://" + url + "/" + path + "?" +\
+    "&".join(["%s=%s" % (key, value) for (key, value) in query.items()])
+
+scheme = "http"
+url = "marvel.wikia.com"
+path = "api.php"
+categoryQuery = {"action":"query","list":"categorymembers","format":"json","cmtitle":"Category:Earth-616_Characters", "cmlimit":"100"}
+r = requests.get(requestUrl(scheme, url, path, **query))
+ids = ""
+json = r.json()
+members = json["query"]["categorymembers"]
+for i in range(len(members)):
+    ids.join(str(members[i]["pageid"]) + "|")
+# query = {"action":"query","list":"categorymembers","format":"json","cmtitle":"Category:Earth-616_Characters", "cmlimit":"100", "cmcontinue":""}
+# for i in range(10):
+#     ccontinue = json["query-continue"]["categorymembers"]["cmcontinue"]
+#     query["cmcontinue"] = ccontinue
+#     r = requests.get(requestUrl(scheme, url, path, **query))
+#     json = r.json()
+#     members = json["query"]["categorymembers"]
+#     for i in range(len(members)):
+#         ids += str(members[i]["pageid"]) + "|"
+
+ids = ids[:len(ids) - 1]
+query = {"action":"query", "prop":"revisions","rvprop":"content","format":"json","pageids":ids,"rvsection":"0"}
+r = requests.get(requestUrl(scheme, url, path, **query))
+for key, value in r.json()['query']['pages'].items():
+    wikitext = value['revisions'][0]['*']
+    wikicode = mwparserfromhell.parse(wikitext)
+    templates = wikicode.filter_templates()
+    try:
+        alignment = templates[0].get("Alignment")
+    except ValueError:
+        alignment = "None"
+
+    try:
+        gender = templates[0].get("Gender")
+    except ValueError:
+        gender = "None"
+    print(alignment.strip(),": ", gender.strip())
+print(ids)
